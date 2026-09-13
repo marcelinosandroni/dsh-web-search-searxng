@@ -18,7 +18,6 @@ import {
   SEARXNG_DEFAULT_CATEGORIES,
   SEARXNG_DEFAULT_LANGUAGE,
   SEARXNG_DEFAULT_TIMEOUT_MS,
-  SEARXNG_PROVIDER_ID,
   SearxngSearchProvider,
 } from './provider.ts'
 import type { SearxngSearchProviderOptions, SearxngTimeRange } from './provider.ts'
