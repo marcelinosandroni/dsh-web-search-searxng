@@ -159,6 +159,51 @@ plugin runs inside a dsh installation they are already present. If you install
 the plugin standalone, npm resolves them from the registry automatically
 (they are published under the `next` dist-tag).
 
+### 3.1 Install into a running dsh installation (profiles)
+
+A live dsh install (the Web GUI, a headless CLI, etc.) keeps its profiles under
+`$DSH_HOME/profiles/<name>/` (by default `~/.dsh/profiles/<name>/`). Each
+profile is its own npm package directory with a `package.json`, a
+`node_modules/`, and a user-editable `cordis.patch.yml`. The shipped `web`
+profile hot-reloads this file (`patchReload: live`), so the running app picks
+up the plugin without a restart.
+
+Two steps. First make the bare name resolvable from the profile by linking the
+built plugin into the profile's `node_modules`:
+
+```bash
+ln -sfn /path/to/dsh-web-search-searxng ~/.dsh/profiles/web/node_modules/dsh-web-search-searxng
+```
+
+(The plugin's own `node_modules` already holds `schemastery`, `cordis`,
+`dsh-web`, and `dsh-launch-environment` at the versions the profile ships, so
+no further install is needed.)
+
+Then replace the contents of `~/.dsh/profiles/web/cordis.patch.yml`:
+
+```yaml
+# A config patch REPLACES the entry's whole config — restate the fetch pin.
+- id: web
+  config:
+    searchProvider: searxng
+    fetchProvider: http
+
+# Register the self-hosted SearXNG search provider.
+- insert:
+    - id: web-search-searxng
+      name: dsh-web-search-searxng
+      config:
+        baseURL: 'http://127.0.0.1:8080'
+```
+
+A `live` profile applies this immediately; a `startup` profile applies it on the
+next launch.
+
+> **Do not run `npm install <folder>` inside the deepseek-harness source
+> checkout.** That tree is a *pnpm* workspace using `workspace:` specifiers, and
+> plain npm rejects them with `EUNSUPPORTEDPROTOCOL`. Install into the profile
+> directory as above instead.
+
 ## 4. Step-by-step: wire it into dsh
 
 Mount the plugin in your cordis composition and (when other search providers
