@@ -163,21 +163,31 @@ the plugin standalone, npm resolves them from the registry automatically
 
 A live dsh install (the Web GUI, a headless CLI, etc.) keeps its profiles under
 `$DSH_HOME/profiles/<name>/` (by default `~/.dsh/profiles/<name>/`). Each
-profile is its own npm package directory with a `package.json`, a
+profile is its own package directory with a `package.json`, a
 `node_modules/`, and a user-editable `cordis.patch.yml`. The shipped `web`
-profile hot-reloads this file (`patchReload: live`), so the running app picks
+profile hot-reloads that file (`patchReload: live`), so the running app picks
 up the plugin without a restart.
 
-Two steps. First make the bare name resolvable from the profile by linking the
-built plugin into the profile's `node_modules`:
+Two steps. First install the plugin into the profile with the official command
+(it forwards to **pnpm inside the profile directory** — never install into the
+deepseek-harness source checkout):
 
 ```bash
-ln -sfn /path/to/dsh-web-search-searxng ~/.dsh/profiles/web/node_modules/dsh-web-search-searxng
+# installed dsh:
+dsh plugin --profile web add /path/to/dsh-web-search-searxng
+
+# or from a deepseek-harness source checkout:
+pnpm dsh plugin --profile web add /path/to/dsh-web-search-searxng
+
+# a published registry/git version works the same way:
+dsh plugin --profile web add dsh-web-search-searxng
 ```
 
-(The plugin's own `node_modules` already holds `schemastery`, `cordis`,
-`dsh-web`, and `dsh-launch-environment` at the versions the profile ships, so
-no further install is needed.)
+pnpm records it in the profile's `package.json`
+(`"dsh-web-search-searxng": "link:/path/to/…"`) and links it into the
+profile's `node_modules`, so the loader resolves the bare name. The warning
+`declares no dsh.bundle — installed as a plain dependency` is expected: this
+plugin mounts through a patch entry (next step), not as a profile bundle layer.
 
 Then replace the contents of `~/.dsh/profiles/web/cordis.patch.yml`:
 
