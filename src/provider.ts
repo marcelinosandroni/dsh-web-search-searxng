@@ -125,27 +125,30 @@ export class SearxngSearchProvider implements WebSearchProvider {
 
   async search(request: WebSearchRequest, signal?: AbortSignal): Promise<WebSearchResult> {
     const url = this.buildSearchUrl(request)
-    const controller = combineSignals(this.options.timeoutMs, signal)
-    let response: Response
+    // The timeout covers the whole operation — dispatch AND body read. The
+    // combined signal is only disarmed (timer cleared) in `finally`; it is
+    // never aborted after dispatch, because undici keeps it linked to the
+    // response body stream and a post-resolve abort would break the read.
+    const combined = combineSignals(this.options.timeoutMs, signal)
     try {
-      response = await fetch(url, {
-        method: 'GET',
-        redirect: this.options.apiKey !== undefined && this.options.apiKey.length > 0 ? 'error' : 'follow',
-        headers: {
-          ...this.options.apiKey !== undefined && this.options.apiKey.length > 0
-            ? { 'authorization': `Bearer ${this.options.apiKey}` }
-            : {},
-          'accept': 'application/json',
-          'user-agent': USER_AGENT,
-        },
-        ...controller.signal !== undefined ? { signal: controller.signal } : {},
-      })
-    } catch (error: unknown) {
-      controller.dispose()
-      if (isAbortError(error) || signal?.aborted === true) throw new WebError('SearXNG search aborted', 'WEB_ABORTED', { cause: error })
-      throw new WebError(`SearXNG search request failed: ${String(error)}`, 'WEB_PROVIDER_ERROR', { cause: error })
-    }
-    controller.dispose()
+      let response: Response
+      try {
+        response = await fetch(url, {
+          method: 'GET',
+          redirect: this.options.apiKey !== undefined && this.options.apiKey.length > 0 ? 'error' : 'follow',
+          headers: {
+            ...this.options.apiKey !== undefined && this.options.apiKey.length > 0
+              ? { 'authorization': `Bearer ${this.options.apiKey}` }
+              : {},
+            'accept': 'application/json',
+            'user-agent': USER_AGENT,
+          },
+          ...combined.signal !== undefined ? { signal: combined.signal } : {},
+        })
+      } catch (error: unknown) {
+        if (isAbortError(error) || signal?.aborted === true) throw new WebError('SearXNG search aborted', 'WEB_ABORTED', { cause: error })
+        throw new WebError(`SearXNG search request failed: ${String(error)}`, 'WEB_PROVIDER_ERROR', { cause: error })
+      }
 
     if (!response.ok) {
       const status = response.status
@@ -165,12 +168,15 @@ export class SearxngSearchProvider implements WebSearchProvider {
       throw new WebError(message, 'WEB_PROVIDER_ERROR')
     }
 
-    try {
-      const payload = await response.json() as SearxngSearchResponse
-      return mapSearxngResponse(payload)
-    } catch (error: unknown) {
-      if (isAbortError(error) || signal?.aborted === true) throw new WebError('SearXNG search aborted', 'WEB_ABORTED', { cause: error })
-      throw new WebError(`SearXNG returned an unprocessable response body: ${String(error)}`, 'WEB_PROVIDER_ERROR', { cause: error })
+      try {
+        const payload = await response.json() as SearxngSearchResponse
+        return mapSearxngResponse(payload)
+      } catch (error: unknown) {
+        if (isAbortError(error) || signal?.aborted === true) throw new WebError('SearXNG search aborted', 'WEB_ABORTED', { cause: error })
+        throw new WebError(`SearXNG returned an unprocessable response body: ${String(error)}`, 'WEB_PROVIDER_ERROR', { cause: error })
+      }
+    } finally {
+      combined.dispose()
     }
   }
 
@@ -220,15 +226,16 @@ function isAbortError(error: unknown): boolean {
 /** Combined timeout + caller abort signal with explicit disposal. */
 interface CombinedSignal {
   readonly signal: AbortSignal | undefined
+  /** Disarm the pending timeout; never aborts the signal itself. */
   dispose(): void
 }
 
 /**
- * Combine a per-request timeout with the caller's abort signal. Uses
- * `AbortSignal.any`/`AbortSignal.timeout` when available (Node ≥ 20.3);
- * otherwise falls back to a manual controller. The returned `dispose()`
- * must be called once the request settles so a pending timeout cannot fire
- * after the operation completes.
+ * Combine a per-request timeout with the caller's abort signal via
+ * `AbortSignal.any` (Node ≥ 20.3; falls back to a manual combiner). The
+ * returned `dispose()` clears the timer only — it must NOT abort the timeout
+ * controller, because the combined signal stays linked to the response body
+ * stream and a post-dispatch abort would surface as a spurious cancellation.
  *
  * @param timeoutMs - optional timeout in milliseconds.
  * @param callerSignal - optional caller abort signal.
@@ -240,41 +247,38 @@ function combineSignals(timeoutMs: number | undefined, callerSignal?: AbortSigna
   }
   const signals: AbortSignal[] = []
   if (callerSignal !== undefined) signals.push(callerSignal)
-  let timeoutController: AbortController | undefined
+  let timer: ReturnType<typeof setTimeout> | undefined
   if (timeoutMs !== undefined && timeoutMs > 0) {
-    timeoutController = new AbortController()
-    const timer = setTimeout(() => timeoutController?.abort(new DOMException('SearXNG search timed out', 'TimeoutError')), timeoutMs)
+    const timeoutController = new AbortController()
+    timer = setTimeout(() => timeoutController.abort(new DOMException('SearXNG search timed out', 'TimeoutError')), timeoutMs)
     // Allow the Node process to exit even if the timer is pending.
     if (typeof timer === 'object' && timer !== null && 'unref' in timer && typeof timer.unref === 'function') {
       timer.unref()
     }
     signals.push(timeoutController.signal)
   }
-  const anyFn = (AbortSignal as unknown as { any?: (signals: AbortSignal[]) => AbortSignal }).any
   const signal = signals.length === 0
     ? undefined
     : signals.length === 1
       ? signals[0]
-      : typeof anyFn === 'function'
-        ? anyFn(signals)
-        : manualAny(signals)
+      : manualAny(signals)
   return {
     signal,
     dispose() {
-      if (timeoutController !== undefined && !timeoutController.signal.aborted) {
-        timeoutController.abort(new DOMException('SearXNG search settled', 'AbortError'))
-      }
+      if (timer !== undefined) clearTimeout(timer)
     },
   }
 }
 
-/** Manual fallback for `AbortSignal.any` on runtimes that lack it. */
+/** `AbortSignal.any` with a manual fallback for runtimes that lack it. */
 function manualAny(signals: AbortSignal[]): AbortSignal {
+  const anyFn = (AbortSignal as unknown as { any?: (signals: AbortSignal[]) => AbortSignal }).any
+  if (typeof anyFn === 'function') return anyFn(signals)
   const controller = new AbortController()
   for (const s of signals) {
     if (s.aborted) {
       controller.abort(s.reason)
-      break
+      return controller.signal
     }
     s.addEventListener('abort', () => controller.abort(s.reason), { once: true })
   }
