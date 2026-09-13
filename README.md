@@ -325,23 +325,30 @@ npm run typecheck
 
 ## Publishing to your git account
 
-1. Update `package.json`: set `repository.url`, `homepage`, and `bugs.url`
-   to your GitHub repo, and `author` to your name/handle.
-2. Create the GitHub repository, then:
+The repo is already wired to `origin` (branch `main`):
+`git@github.com:marcelinosandroni/dsh-web-search-searxng.git`. Push with:
 
-   ```bash
-   git remote set-url origin git@github.com:<your-user>/dsh-web-search-searxng.git
-   git push -u origin master
-   ```
+```bash
+git push -u origin main
+```
 
-3. (Optional) Publish to npm so `npm install dsh-web-search-searxng` works:
+Anyone can then install it directly from GitHub:
 
-   ```bash
-   npm login
-   npm publish          # add --access public if you scope the package
-   ```
+```bash
+npm install github:marcelinosandroni/dsh-web-search-searxng
+# or, for a running dsh profile:
+dsh plugin --profile web add github:marcelinosandroni/dsh-web-search-searxng
+```
 
-   `prepublishOnly` runs a clean build automatically.
+(If you publish under a different account, update `package.json`
+`repository`/`homepage`/`bugs`/`author` and the URLs above first.)
+
+Optionally publish to npm so the bare name works in every package manager:
+
+```bash
+npm login
+npm publish          # add --access public if you scope the package; runs a clean build via prepublishOnly
+```
 
 ## License
 

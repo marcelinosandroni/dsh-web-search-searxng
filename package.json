@@ -27,14 +27,14 @@
     "prepublishOnly": "npm run clean && npm run build"
   },
   "license": "MIT",
-  "author": "marcelino",
+  "author": "marcelinosandroni",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/marcelino/dsh-web-search-searxng.git"
+    "url": "git+https://github.com/marcelinosandroni/dsh-web-search-searxng.git"
   },
-  "homepage": "https://github.com/marcelino/dsh-web-search-searxng#readme",
+  "homepage": "https://github.com/marcelinosandroni/dsh-web-search-searxng#readme",
   "bugs": {
-    "url": "https://github.com/marcelino/dsh-web-search-searxng/issues"
+    "url": "https://github.com/marcelinosandroni/dsh-web-search-searxng/issues"
   },
   "keywords": [
     "deepseek-harness",
