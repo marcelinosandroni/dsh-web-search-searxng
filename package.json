@@ -1,0 +1,70 @@
+{
+  "name": "dsh-web-search-searxng",
+  "version": "0.1.0",
+  "description": "SearXNG-backed search provider for the DeepSeek Harness web capability seam (ctx.web) — query a self-hosted SearXNG metasearch instance's JSON API",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "examples/cordis.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf lib",
+    "test": "node --import tsx/esm --test tests/*.test.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "license": "MIT",
+  "author": "marcelino",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/marcelino/dsh-web-search-searxng.git"
+  },
+  "homepage": "https://github.com/marcelino/dsh-web-search-searxng#readme",
+  "bugs": {
+    "url": "https://github.com/marcelino/dsh-web-search-searxng/issues"
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "searxng",
+    "searx",
+    "web-search",
+    "metasearch",
+    "cordis",
+    "plugin",
+    "ai-agent"
+  ],
+  "engines": {
+    "node": ">=20.3"
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "^3.18.2"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.2",
+    "@deepseek-ai/dsh-web": "^0.1.5-rc.2",
+    "@deepseek-ai/dsh-launch-environment": "^0.1.5-rc.2"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "4.0.2",
+    "@deepseek-ai/dsh-web": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-launch-environment": "0.1.5-rc.2",
+    "@deepseek-ai/schemastery": "^3.18.2",
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

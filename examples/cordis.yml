@@ -1,0 +1,35 @@
+# Example cordis.yml overlay registering the SearXNG web-search provider.
+#
+# The dsh web seam (ctx.web) auto-selects a single usable search provider.
+# When more than one search provider plugin is mounted (for example the
+# built-in DeepSeek/Exa providers), pin the winner with the web service's
+# `searchProvider` config — registration order never decides.
+#
+# Drop this file next to your composition (or merge the `plugins` entry into
+# your existing cordis.yml) and start dsh with your usual profile command.
+
+plugins:
+  # The SearXNG search provider itself.
+  - name: dsh-web-search-searxng
+    # Path or npm specifier resolvable by your loader:
+    setup: dsh-web-search-searxng
+    config:
+      # Your SearXNG instance. Omit to fall back to $SEARXNG_BASE_URL,
+      # then http://localhost:8080.
+      baseURL: 'http://localhost:8080'
+      # Optional tuning:
+      categories: 'general'
+      language: 'en'
+      safesearch: 0
+      # timeRange: 'week'
+      # pageno: 1
+      # apiKey: 'bearer-token-for-authed-proxy'
+      timeoutMs: 15000
+
+  # Pin the web seam to this provider when other search providers are mounted.
+  # (`web` is already mounted by the shipped dsh profiles; this entry only
+  # adds the selection config.)
+  - name: web
+    setup: '@deepseek-ai/dsh-web'
+    config:
+      searchProvider: 'searxng'

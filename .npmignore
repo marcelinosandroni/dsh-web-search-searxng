@@ -1,0 +1,9 @@
+# tests and sources not needed at runtime by consumers
+tests/
+docs/
+.github/
+.vscode/
+tsconfig.json
+.gitignore
+.npmignore
+*.tsbuildinfo
